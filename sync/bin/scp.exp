@@ -1,0 +1,15 @@
+#!/zhjs/sync/tcl/bin/expect
+
+set timeout 30
+set local_file [lindex $argv 0]
+set password 'yV#nRcN='
+set remotepath [lindex $argv 1]
+spawn scp $local_file $remotepath
+expect {
+"yes/no" { send "yes\r"; exp_continue}
+"*password" {send "yV#nRcN=\r"}
+}
+#interact
+set timeout 300 
+send "exit\r"
+expect eof

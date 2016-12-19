@@ -1,0 +1,25 @@
+#!/zhjs/sync/tcl/bin/expect
+
+set timeout 30
+
+set host [lindex $argv 0]
+set password 'yV#nRcN='
+set cmd ''
+set i 1
+while { $i < $argc } {
+	append cmd " " [lindex $argv $i] 
+	incr i 1
+}
+
+spawn ssh $host
+expect {
+"yes/no" { send "yes\r"; exp_continue}
+"*password" {send "yV#nRcN=\r"}
+}
+interact
+#expect "]$ "
+#send "$cmd\r"
+#expect "]$ "
+#send "exit\r"
+#expect eof
+#exit
