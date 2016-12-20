@@ -1,0 +1,6 @@
+#查看活动链接
+netstat -aon | findstr "22"
+#查看特定服务
+tasklist | findstr "22"
+#杀掉特定服务
+taskkill /pid 1688 /F	
