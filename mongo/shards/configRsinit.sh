@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ $# -ne 4 ]
+if [ $# -ne 3 ]
 then
 echo 'Usage:'
 echo '  '$0' host1:port1 host2:port2 host3:port3'
@@ -42,10 +42,21 @@ if(rs.initiate(${config}).ok==1){
 				master.getDB('yjjs').createUser({user:'yjjs',pwd:'yjjs123',roles:[{role:'readWrite',db:'yjjs'}]})
 				if(master.getDB('yjjs').getUser('yjjs')!=null){
 					print("@create user(yjjs) success!")
-					print("@All done")
 				}else{
 					print("@create user(yjjs) error!")
 				}
+				if(master.getDB('admin').getUser('admin')!=null){
+                                        print("@create user(admin) already existes!")
+                                        print("@All done")
+                                        quit()
+                                }
+                                master.getDB('admin').createUser({user:'admin',pwd:'admin123',roles:[{role:'root',db:'admin'}]})
+                                if(master.getDB('admin').getUser('admin')!=null){
+                                        print("@create user(admin) success!")
+                                        print("@All done")
+                                }else{
+                                        print("@create user(admin) error!")
+                                }
 				quit()
 			}
 		}
