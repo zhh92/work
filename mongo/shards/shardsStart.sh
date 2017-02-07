@@ -9,7 +9,7 @@ startlog=${shards_root}'/start.log'
 db_root=${shards_root}"/dbs"
 log_root=${shards_root}"/logs"
 portbegin=30001
-nodebase="confignode"
+nodebase="shardingnode"
 
 if [ ! -f $startlog ];then
 	touch $startlog
@@ -26,9 +26,15 @@ echo `date` >>$startlog
 echo "starting">>$startlog
 for i in {1..3}
 do
-node=$nodebase$i
-port=$portbegin
+Node=$nodebase$i
+Port=$portbegin
 let portbegin++
+#sharding num
+for j in {1..2}
+do
+
+node=$Node"_"$j
+port=$(($Port+$j*1000))
 
 dbpath=$db_root"/"$node
 if [ ! -d $dbpath ];then
@@ -38,11 +44,15 @@ fi
 
 logpath=$log_root"/"$node".log"
 
+configpath=${shards_root}/shardsvr$j.conf
+
 echo "===========================================================" >>$startlog
 echo "node:"$node >>$startlog
 echo "dbpath:"$dbpath >>$startlog
 echo "logpath:"$logpath >>$startlog
 echo "port:"$port >>$startlog
 echo "mongod starting..." >>$startlog
-numactl --interleave=all ${MONGODB_BIN}/mongod -f ${shards_root}/configsvr.conf --dbpath $dbpath --logpath $logpath --port $port --auth --keyFile ${shards_root}/keyFile >>$startlog
+numactl --interleave=all ${MONGODB_BIN}/mongod -f $configpath --dbpath $dbpath --logpath $logpath --port $port --auth --keyFile ${shards_root}/keyFile >>$startlog
+done
+
 done
