@@ -1,0 +1,1 @@
+db.getSiblingDB('admin').runCommand({listDatabases:1}).databases.forEach(function(doc){print("dbname:"+doc.name);tables=db.getSiblingDB(doc.name).getCollectionNames();for(i in tables){print(tables[i]+":"+db.getSiblingDB(doc.name).getCollection(tables[i]).count())};print('=======================================')})
