@@ -36,5 +36,9 @@ echo "dbpath:"$dbpath >>$startlog
 echo "logpath:"$logpath >>$startlog
 echo "port:"$port >>$startlog
 echo "mongod starting..." >>$startlog
+if [ $# -gt 0 ];then
 numactl --interleave=all ${MONGODB_BIN}/mongod -f ${MONGODB_BIN}/node.conf --dbpath $dbpath --logpath $logpath --port $port --syncdelay 1 >>$startlog
+else
+numactl --interleave=all ${MONGODB_BIN}/mongod -f ${MONGODB_BIN}/node.conf --dbpath $dbpath --logpath $logpath --port $port --syncdelay 1  --auth >>$startlog
+fi
 done
