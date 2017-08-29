@@ -94,6 +94,11 @@ bool FilterTask::GetRedisConfigInfo(ConnParam *pstParam){
 }
 
 
+bool FilterTask::fileExists(const std::string& file) {
+    struct stat buf;
+    return (stat(file.c_str(), &buf) == 0);
+}
+
 /* Show designation files under dir_name ! */  
 void FilterTask::showDesignationFiles( const char * dir_name ,vector<string> &svecFiles){  
      
@@ -134,7 +139,9 @@ void FilterTask::showDesignationFiles( const char * dir_name ,vector<string> &sv
 			continue;
 		if(strcmp( filename->d_name , "..") == 0)
 			continue;
-		if((filename->d_name)[0]=='t')
+		if((filename->d_name)[0]=='T'&&strcmp(string(filename->d_name,0,4).c_str(),"T100"))
+			continue;
+		if((filename->d_name)[0]=='~')
 			continue;
 		lstat( filename->d_name , &s ); 
 		if(S_ISDIR( s.st_mode )){
@@ -211,7 +218,7 @@ bool FilterTask::prepare(){
 					("usage","Usage:\n	filter -f 1 -d 工作目录\n	filter -f 0 -d 工作目录 -F 工作文件(相对工作目录）")
 					(",f",BPO::value<int>(&m_iFlowFlag)->default_value(1),"工作流向,0:rollBack 1:filter。")
 					("File,F",BPO::value<string>(&m_sFile),"工作文件")
-					("Dir,d",BPO::value<string>(&m_sDir),"工作目录");
+					("Dir,d",BPO::value<string>(&m_sDir)->default_value("/data/pas/outfile/"),"工作目录");
 	BPO::variables_map vm;
 	try{
 			BPO::store(BPO::parse_command_line(g_argc,g_argv,desc), vm);
@@ -290,9 +297,13 @@ bool FilterTask::processFile(string sdir,string sfilename,int iFlowFlag){
 	if(m_ofData.is_open()){
 		m_ofData.close();
 	}
-	//!1!!
-	string soutfile=sdir+"/outdata/~"+sfilename;
+	string soutfile=sdir+"~"+sfilename;
+	if(fileExists(soutfile)){
+		cout<<soutfile<<"exists"<<endl;
+		return false;
+	}
 	m_ofData.open(soutfile.c_str(),ios::out|ios::app);
+	m_ioutrows=0;
 	if(!m_ofData.is_open()){
 		return false;
 	}
@@ -302,8 +313,10 @@ bool FilterTask::processFile(string sdir,string sfilename,int iFlowFlag){
 	//第一行为字段名
 	if(getline(in,strData)){
 		boost::split(m_svecFiledName,strData,boost::is_any_of(","));
+		m_ofData<<strData<<endl;
 	}else{
 		//error
+		in.close();
 		return false;
 	}
 	map<string,string> mapData;
@@ -327,6 +340,17 @@ bool FilterTask::processFile(string sdir,string sfilename,int iFlowFlag){
 		//error
 	}
 	in.close();
+	
+	m_ofData.close();
+	ifstream iftemp((sdir+"~"+sfilename).c_str(),ios::in);
+	ofstream oftemp((sdir+"~~"+sfilename).c_str(),ios::out|ios::app);
+	oftemp<<"update:"<<m_ioutrows<<endl;
+	while(getline(iftemp,strData)){
+		oftemp<<strData<<endl;
+	}
+	iftemp.close();
+	oftemp.close();
+
 }
 
 //0:成功;-1:字段取值错误；-2：lock错误；-3：redis错误
@@ -349,7 +373,6 @@ int FilterTask::processOneData(map<string,string> &mapData,string sBatchNum,int 
 	//根据策略范围提取排重周期年月日
 	int BillingCycle=0;
 	//新增字段，处理字段需要待定
-	//int icycleType=atoi(mapData["CYCLE_TYPE"].c_str());
 	int icycleType=atoi(mapData["FILTER_CYCLE_TYPE"].c_str());
 	if(1==icycleType){
 		BillingCycle=iBillingCycleID/100;
@@ -370,8 +393,8 @@ int FilterTask::processOneData(map<string,string> &mapData,string sBatchNum,int 
 	}else if(2==lFilterField){
 		sprintf(chkey,"%d|%ld:%s", BillingCycle, lFilterField, mapData["OBJ_ID"].c_str());
 	}else if(3==lFilterField){
-		//新增字段，字段名待定
-		sprintf(chkey,"%d|%ld:%s", BillingCycle, lFilterField, mapData["INDEX_KEY"].c_str());
+		//新增字段，字段名待定CHECK_FIELD
+		sprintf(chkey,"%d|%ld:%s", BillingCycle, lFilterField, mapData["CHECK_FIELD"].c_str());
 	}else{
 		//error
 		return WRONGVALUE;
@@ -471,6 +494,7 @@ bool FilterTask::update(const char* chkey,map<string,string> &mapData,string sBa
 	}
 	string soutdata(stempdata,0,stempdata.size()-1);
 	m_ofData<<soutdata<<endl;
+	++m_ioutrows;
 }
 
 bool FilterTask::update(const char* chkey,map<string,string> &mapData,string sBatchNum){
@@ -530,6 +554,7 @@ bool FilterTask::update(const char* chkey,map<string,string> &mapData,string sBa
 			}
 			string soutdata(stempdata,0,stempdata.size()-1);
 			m_ofData<<soutdata<<endl;
+			++m_ioutrows;
 			
 			try{
 				iret=m_RedisFilter.delkey(sKeyMap.c_str());
@@ -591,6 +616,7 @@ bool FilterTask::rollBack(const char* chkey,map<string,string> &mapData,string s
 		}
 		string soutdata(stempdata,0,stempdata.size()-1);
 		m_ofData<<soutdata<<endl;
+		++m_ioutrows;
 		
 		try{
 			iret=m_RedisFilter.delkey(sKeyMap.c_str());
@@ -610,11 +636,11 @@ int FilterTask::test(){
 	mapData["BILLING_CYCLE_ID"]="20170822";
 	mapData["EFF_DATE"]="20170801";
 	mapData["EXP_DATE"]="20170831";
-	mapData["CYCLE_TYPE"]="1";
+	mapData["FILTER_CYCLE_TYPE"]="1";
 	mapData["STRATEGY_ID"]=//1;
 	mapData["SERVICE_TYPE_ID"]="111";
 	mapData["OBJ_ID"]="222";
-	mapData["INDEX_KEY"]="333";
+	mapData["CHECK_FIELD"]="333";
 	mapData["CHARGE"]="20";
 	mapData["STRATEGY_LEVEL"]="3";
 	processOneData(mapData,"1.1.1.1",1);

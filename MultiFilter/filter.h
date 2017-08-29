@@ -46,6 +46,7 @@ class FilterTask/*:public Process*/{
 		bool IsDirectory(char* pchPath);
 		bool CheckPath(char *pchPath);
 		bool GetRedisConfigInfo(ConnParam *pstParam);
+		bool fileExists(const std::string& file);
 		void showDesignationFiles( const char * dir_name ,vector<string> &svecFiles);
 		bool construction(string& strData,vector<string>& svecFiledName,map<string,string> &mapData);
 		void RedisErrorHandler(int iErrCode,string sMsg);
@@ -70,4 +71,5 @@ class FilterTask/*:public Process*/{
 		ofstream m_ofErrData;
 		//输出正确数据
 		ofstream m_ofData;
+		int m_ioutrows;
 };
